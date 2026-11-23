@@ -1,0 +1,50 @@
+name: Vigilancia nocturna caché delaroca.es
+
+# Una sola ejecución larga que pasa la sonda cada 15 minutos durante la madrugada
+# (antes y después de las 03:39 de Madrid, hora de wp_version_check) y deja el
+# resumen en un "issue" del repositorio (GitHub lo avisa por correo al dueño).
+# Varias horas de arranque por si GitHub retrasa o se salta alguna; solo corre una a la vez.
+
+on:
+  schedule:
+    - cron: "7 23 * * *"    # 00:07 Madrid
+    - cron: "37 0 * * *"    # 01:37 Madrid (reserva)
+    - cron: "37 1 * * *"    # 02:37 Madrid (reserva)
+  workflow_dispatch:
+
+concurrency:
+  group: vigilancia
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  vigilar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    steps:
+      - uses: actions/checkout@v4
+      - name: Sonda cada 15 minutos hasta las 04:45 de Madrid
+        run: |
+          : > resumen.txt
+          while [ "$(TZ=Europe/Madrid date +%H%M)" -lt 0445 ] || [ "$(TZ=Europe/Madrid date +%H)" -ge 12 ]; do
+            bash sonda.sh | tee -a detalle.txt | grep '^SONDA' | tee -a resumen.txt
+            sleep 900
+          done
+          echo "Fin: $(TZ=Europe/Madrid date '+%H:%M') Madrid"
+      - name: Dejar el resumen en un issue
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          [ -s resumen.txt ] || exit 0
+          {
+            echo "Páginas de la muestra que seguían en la caché, cada 15 minutos."
+            echo "Si a partir de las 03:39 el número cae de golpe, algo vació la caché a esa hora."
+            echo
+            echo '```'; cat resumen.txt; echo '```'
+          } > cuerpo.md
+          gh issue create -R "$GITHUB_REPOSITORY" \
+            --title "Vigilancia caché $(TZ=Europe/Madrid date '+%Y-%m-%d')" --body-file cuerpo.md
