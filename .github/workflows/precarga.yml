@@ -6,6 +6,7 @@ on:
     # dos veces por la noche. La segunda pasada es rápida si la caché sigue llena.
     - cron: "17 21 * * *"   # 22:17 en Madrid (invierno)
     - cron: "7 5 * * *"     # 06:07 en Madrid (invierno), después del vaciado nocturno del servidor (~03:40-04:40)
+    - cron: "17 14 * * *"   # 15:17 en Madrid (invierno), para rellenar tras las ediciones de productos de la mañana
   workflow_dispatch:        # permite lanzarlo a mano desde GitHub
 
 concurrency:
